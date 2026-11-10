@@ -1,0 +1,238 @@
+# Mr Sadu POS
+
+Point-of-sale web app for **Mr Sadu – Juice Bar & Burger Shop**.
+Plain HTML + JS (no build step) · Data & login on **Supabase** · Hosted on **Netlify** · Code on **GitHub**.
+
+## What's inside
+| Tab | What it does |
+|---|---|
+| **POS** | Tap items, pick extras (cheese/egg…), Dine-in / Takeaway, customer name + WhatsApp no., discount (% or LKR), service charge, payment (Cash / Card / Bank / QR), cash received → balance to give |
+| **Orders & Billing** | Bill history – today / month / any date, search, daily totals, reprint, resend on WhatsApp, CSV export |
+| **Dashboard** | Today + month sales, dine-in vs takeaway, best-selling items, item stock, low ingredient alerts, 7-day chart |
+| **Kitchen Display** | New orders appear live with a sound alert. **Mark Served** or **Print** slip. Cashier gets a "served" alert |
+| **Menu Management** | Categories, items (price, stock), extras / add-ons with prices |
+| **Inventory** | Ingredients (buns, cheese…) with low-stock alert level |
+| **Google Review** | Save your Google review link (goes on WhatsApp bills only, not on printed bills) |
+| **Settings & Security** | Cashier on duty, service charge, default discount, payment methods, shop details, **2-step verification (authenticator app)**, change password |
+
+Try it right now without any setup: open `index.html` through any web server (e.g. `python3 -m http.server`) – with empty keys it runs in **DEMO MODE** (login `admin@demo.lk` / `admin123`, 2-step code `123456`, data kept only in that browser).
+
+---
+
+## 1) Supabase (database + login)
+1. https://supabase.com → **New project** (choose a region close to Sri Lanka, e.g. Singapore / Mumbai). Save the database password.
+2. **SQL Editor → New query** → paste everything from `sql/schema.sql` → **Run**.
+3. **Authentication → Users → Add user → Create new user**: your email + a strong password, tick **Auto Confirm User**. Add one for each staff member if needed.
+4. **Authentication → Sign In / Providers** (or Settings): turn **OFF** "Allow new users to sign up" so nobody else can register.
+5. **Authentication → Multi-Factor** : make sure **TOTP** is enabled (it is by default).
+6. **Project Settings → API**: copy **Project URL** and the **anon public** key into `js/config.js`:
+   ```js
+   export const SUPABASE_URL = 'https://xxxx.supabase.co';
+   export const SUPABASE_ANON_KEY = 'eyJ...';
+   ```
+   (The anon key is meant to be public. Your data is protected by login + Row Level Security from the SQL file. **Never** put the `service_role` key anywhere in this project.)
+
+## 2) GitHub
+```bash
+cd mr-sadu-pos
+git init
+git add .
+git commit -m "Mr Sadu POS"
+git branch -M main
+git remote add origin https://github.com/<your-username>/mr-sadu-pos.git   # create the empty repo on github.com first (Private is fine)
+git push -u origin main
+```
+
+## 3) Netlify (hosting)
+1. https://app.netlify.com → **Add new site → Import an existing project → GitHub** → pick the repo.
+2. Build command: *(leave empty)* · Publish directory: `.` (already set in `netlify.toml`) → **Deploy**.
+3. Every `git push` re-deploys automatically. Open the Netlify URL on the shop tablet / phone / PC and **Add to Home screen**.
+
+## 4) First-time setup inside the app
+1. Sign in → **Settings & Security → Turn on** 2-step verification (scan QR with Google/Microsoft Authenticator, enter code).
+2. Fill **Shop details** (phone, WhatsApp), **Billing** (service charge %, default discount %, payment methods) and the **cashier on duty**.
+3. **Google Review** tab → paste your review link.
+4. **Menu Management** → delete the sample items and add your real categories, items, prices, stock and extras.
+5. **Inventory** → add your ingredients.
+
+## Notes
+* **WhatsApp:** the button opens WhatsApp (app or web) with the bill already typed for that number – the cashier taps *Send*. Sending fully automatically needs the paid WhatsApp Business API.
+* **Printing:** uses the browser print dialog, sized for 80 mm thermal paper. In the print dialog choose your receipt printer and set margins to *None*.
+* **Kitchen screen:** open the app on a second device and keep the *Kitchen Display* tab open. Tap anywhere once so the browser allows the alert sound (use **Test sound**).
+* **Stock:** items with *Track stock* go down automatically on every sale. Use **+ Stock** in Menu Management when you make more.
+* **Strict 2-step (optional):** see the commented policy at the bottom of the security section in `sql/schema.sql` to make the database itself refuse non-2-step sessions.
+
+## Troubleshooting
+* *"relation … does not exist"* → run `sql/schema.sql` (step 1.2).
+* *Invalid login credentials* → create the user in Supabase (step 1.3).
+* *Kitchen doesn't update instantly* → the app also re-checks every 10 s, so it still works; make sure the SQL ran fully (it enables realtime on `orders`).
+* *Can't turn on 2-step* → enable TOTP in Supabase Authentication → Multi-Factor.
+
+## Added later
+* **POS options before *Place Order*:** *Send to kitchen* (untick = bill is saved but never shown in the Kitchen Display), *Print kitchen slip*, *Print customer bill*. Your choice is remembered on that device.
+* **Kitchen Display:** *Mark Served* can be undone with **Undo**. Counter devices get a sound + popup when an order is served; kitchen devices get a repeating sound + popup for every new order. Set each device's role in the top bar (**Device: Counter / Kitchen / Both**). Tap anywhere once so the browser allows sound.
+* **Bills:** printed bill and the WhatsApp *picture* carry the logo. WhatsApp text cannot carry a picture, so use **WhatsApp (with logo picture)** – on a phone it opens the share sheet, on a computer the picture is saved and the chat opens so you can attach it.
+* **Your software company line:** open `js/brand.js`, fill `SOFTWARE_NAME` and `SOFTWARE_SITE`. It then appears at the bottom of every printed bill, WhatsApp text and bill picture. Leave empty to hide.
+* **Dark / Light** and **English / සිංහල** buttons are in the top bar (and on the login page). Bills stay in English for customers.
+* **Sri Lanka time:** all dates, "today" and "this month" use Asia/Colombo time whatever the device's own time zone is. At 12:00 midnight the screens roll over to the new day by themselves.
+* **Many devices:** orders, stock, menu, settings and the dashboard refresh on every device automatically (live, with a 10–20 s safety refresh). If you made the database with the very first `schema.sql`, run `sql/realtime-all.sql` once.
+
+## Update 3 – token numbers, qty × price bills, extras with quantity, saved customers
+1. **Run `sql/update-3.sql`** once in Supabase → SQL Editor (existing database). New installs: `schema.sql` already has it.
+2. Every order gets a **Token No** (1, 2, 3… restarts at 12 midnight Sri Lanka time). Shown on bills, kitchen slip, kitchen cards, Orders page.
+3. Bill lines show `qty × unit price = total`. Extras have their own quantity (Extra Cheese × 2) and print the same way.
+4. Customer WhatsApp numbers typed in POS are saved in the **Customers** tab (visits, total spent, WhatsApp link, CSV export).
+
+## Update 4
+- An unfinished order in POS (items, extras, table, customer, note, discount…) is kept when you open another tab or refresh; it clears only after **Place Order**.
+- **Cashier on duty is now per device** (saved in that phone/computer's browser). Each counter sets its own name; bills print the cashier of the device that made the order. All devices still see every order live.
+
+## Update 5 – devices, admin approval, cashier on bills
+1. **Run `sql/update-4.sql`** once in Supabase → SQL Editor. Then open the POS **first on the owner's phone/computer** – that device becomes the **Admin**.
+2. Every other device must be named and then **approved by the admin** (Settings & Security → Devices & cashiers). Admin can **Remove** a device (it is signed out and needs approval again).
+3. Opening **Settings & Security** on a non-admin device asks for the **admin email + password**.
+4. Settings shows every device with the cashier on duty. The cashier name is printed on printed bills, WhatsApp text and WhatsApp picture bills. POS asks for the cashier name if it is empty.
+5. Lost the admin phone? In the SQL Editor run `delete from public.devices;` – the next device to log in becomes admin.
+Note: this is an app-level gate for staff devices (the Supabase login itself is shared). Tip: create separate staff logins in Supabase → Authentication → Users, and keep the owner's account private as the admin account.
+
+## Update 6 – admin-only approval, Settings access request, no more forced logout
+1. **Run `sql/update-5.sql`** once in Supabase → SQL Editor.
+2. Only the **admin device** can Approve / Remove devices (buttons are not even shown on other devices).
+3. Opening **Settings & Security** on any other device: step 1 admin email + password (asked EVERY time, leaving the page locks it again), step 2 a pop-up appears on the admin device → **Allow / Deny**.
+4. Fixed: signing in / out on one device (or checking the admin password) used to sign **every** device out. Sign-out is now local to that device only.
+
+## Update 7 – promotions to saved customers
+1. **Run `sql/update-6.sql`** once (adds the `opt_out` column and a public photo bucket `promos`).
+2. Customers tab → **Send promotion**: write a message ({name} = customer's first name), add a photo (its link is added to the message, WhatsApp shows a preview), choose who gets it (all / visited in the last N days / at least N visits), then tap **Open WhatsApp** once per customer and press Send. Progress is saved if you stop.
+3. Customers marked **Stopped** (tap the Promos pill) are skipped. WhatsApp does not allow fully automatic bulk sending without its paid Business API, and sending to people who did not agree can get a number banned.
+
+## Update 8 – send a promotion to ALL customers automatically (WhatsApp Business API)
+WhatsApp does not let any app send to many people from your normal WhatsApp. The only official way is the **WhatsApp Business Cloud API** (Meta). The app is ready for it; you must set up Meta once. (Not tested against a real Meta account – test with 1–2 of your own numbers first.)
+
+**One-time setup**
+1. Meta Business account → developers.facebook.com → create an app (type Business) → add the **WhatsApp** product.
+2. Add a phone number for the shop (a number that is not already used in the WhatsApp app, or use Meta's coexistence option). Note the **Phone number ID**.
+3. Create a **permanent access token** (Business settings → System users → add → generate token with `whatsapp_business_messaging` + `whatsapp_business_management`).
+4. WhatsApp Manager → **Message templates → Create template**: category **Marketing**, header **Image**, body e.g. `Hi {{1}}! 🍞 Fresh burgers & juices at Mr Sadu today. Come visit us!`. Wait until it says **Approved**.
+5. Supabase → **Edge Functions → Deploy a new function → Via Editor**, name it exactly `send-promo`, paste the code of `supabase/functions/send-promo/index.ts`, Deploy.
+6. Supabase → Edge Functions → **Secrets**: add `WA_TOKEN` (the token) and `WA_PHONE_ID` (the Phone number ID).
+7. Run `sql/update-6.sql` (photo storage) if you have not.
+
+**Using it**: Customers → Send promotion → *Send to everyone automatically* (it turns on by itself once the function and secrets exist) → template name + language, add the photo, choose who → Start. Failed numbers are listed with the reason and can be retried. Meta charges per marketing message and only people who have WhatsApp will receive it; send only to customers who agreed.
+
+## Update 9 – bill stays open after refresh, refunds, change type/payment, kitchen screen page
+1. **Run `sql/update-7.sql`** once in Supabase → SQL Editor (adds refund + change-history columns to bills).
+2. **Bill window after Place Order stays open** – even if the page is refreshed or you open another tab – until you press ✕. You can still Print / WhatsApp it. (Bills opened from Orders & Billing can also be sent any time.)
+3. **Orders & Billing → open a bill**: **Change type / payment** (Dine-in ⇄ Takeaway, table no., payment method) and **↩ Refund** (pick which items / extras and how many; optional reason; optional "put back in stock"). Refunds on a non-admin device ask for the admin email + password. The bill shows *Refunded* and *NET TOTAL*; Orders, Dashboard and sales totals use the net amount. Every change is recorded (who and when).
+4. **Kitchen screen page**: open `https://YOUR-SITE/kitchen.html` (or Kitchen Display → *Open as kitchen screen*) on the kitchen monitor. It has no menu, big cards, new-order alert sound, full-screen button and keeps the screen awake. Sign in once on that device (it is named "Kitchen screen" and needs the admin's approval like any device).
+
+## Update 10
+- Settings access requests ("Allow / Deny") and "new device waiting" alerts appear **only on the admin POS page** – never on the kitchen screen page (`kitchen.html`), even if it is open in the same browser.
+- **Dashboard → Refunded items**: every refunded item with quantity and amount (Today / This month switch), and whether it was added back to stock.
+- Refunded items are **put back in stock by default** (the tick can be removed in the refund window).
+
+
+## Update 11 – Costs, ingredient prices & profit
+Run **sql/update-8.sql** in the Supabase SQL Editor (safe to run again).
+- **Inventory → Add stock**: enter how much you bought (kg or g, L or ml…) and the **total price you paid**. The cost per unit is averaged with the stock you already have (first purchase on unpriced stock sets the price). **🧾** shows every purchase and the total spent. Edit an ingredient to type a cost by hand.
+- **Menu → Items → Edit**: add the ingredients of ONE item (e.g. 1 bun + 10 g cheese). The cost and profit are worked out from the inventory prices, or tick "I will type the cost myself". Extras have their own cost.
+- **POS**: every bill remembers the cost at the time of sale (profit of old bills never changes).
+- **Orders & Billing**: "Profit from these bills" card (for the bills in the list below) + profit under every bill; CSV has Cost and Profit columns. Bills made before this update have no cost and are not counted.
+
+
+## Update 12 – ingredient use, dashboard profit, forgot password, security alerts
+Run **sql/update-9.sql** in the Supabase SQL Editor (safe to run again).
+- **Ingredients come out of the inventory when you sell**: each item's recipe (e.g. 1 pcs bun + 10 g cheese) is converted into the inventory unit (g -> kg, ml -> L) and subtracted. A refund with "put back in stock" ticked puts the ingredients back too. Extras are not part of this (they only have a cost).
+- **Dashboard**: "Today's profit" and "This month's profit" cards.
+- **Forgot password** (login page): 1) enter the account email -> a reset link is emailed, 2) open the link on the device, enter the 6-digit code from the authenticator app, 3) choose a new password.
+  In Supabase: Authentication -> URL Configuration -> add your site address (https://cerulean-haupia-244018.netlify.app) to **Redirect URLs**.
+- **Settings & Security**: changing the password or turning 2-step OFF always asks for the authenticator code. When this is done from a device that is not the admin device, the admin device gets a "Security alert" pop-up.
+
+
+## Update 13 – Dashboard: stock bought, loss, monthly profit
+- Dashboard: **Stock bought (this month)** = total price of everything added with Inventory -> Add stock (today's amount underneath).
+- Dashboard: **Loss – refunded, not put back** = cost of refunded items that were not returned to stock.
+- **This month's profit** now includes bills made before costs existed: they are ESTIMATED with today's item costs (shown as "N old bills estimated", and "(est.)" next to a bill's profit). Bills made after the cost update use their own saved cost.
+
+
+## Update 14 – QR ordering
+Run **sql/update-10.sql** in the Supabase SQL Editor (safe to run again).
+- **POS -> QR Ordering** (new page): press *Show QR code*, then *Print QR poster* and stick it in the shop. The QR opens `order.html` (customer page, Sinhala / English).
+- **Customer**: sees the menu (items that are finished show "Finished", low stock shows "Only N left", and they cannot order more than what is left), registers with name + phone + PIN (logs in with phone + PIN next time), chooses Takeaway / Dine-in (+ table no.), adds extras, sends the order and gets an order code (Q1, Q2 ... restarts every day). The page shows the status live: waiting -> confirmed -> ready -> completed.
+- **Staff**: a new order beeps and shows a badge on *QR Ordering*. **Confirm -> kitchen** turns it into a normal order (bill number, token, stock and ingredients are reduced, customer saved). When the customer comes with the code: **Collect & make bill** (or type the code in the search box and press Enter) -> discount (% or LKR), service charge, payment -> Print / WhatsApp as usual. *Reject* tells the customer; *Customer did not come* opens the refund (tick "put back in stock").
+- *Accepting QR orders* switch on that page = close / open QR ordering.
+- Safety: customers can only call the small `qr_*` functions (they cannot read your tables); prices and stock are always checked on the server, not from the phone; 5 wrong PINs lock a number for 15 minutes; max 3 waiting orders per customer.
+- Orders & Billing: search by the QR code (e.g. Q7); QR orders show their code under the token.
+
+## Update 15 – QR page polish
+- Customer QR page has a dark / light mode button (☀️/🌙), remembered on the phone.
+- When **Accepting QR orders** is off, customers can still look at the menu but cannot add or place orders (also blocked on the server).
+- Kitchen cards, kitchen print, customer bill, WhatsApp text and image bill show a **QR ORDER Q#** label.
+- When the kitchen marks a QR order **Served/Ready**, the customer's phone plays a sound, vibrates, shows a green banner and (if allowed) a phone notification.
+
+## Update 16 – install as app, order history, offers, phone notifications (even when the page is closed)
+1. Run `sql/update-11.sql` in the Supabase SQL Editor.
+2. Supabase → Edge Functions → **Deploy a new function → Via Editor**, name exactly `qr-push`, paste `supabase/functions/qr-push/index.ts`, Deploy.
+3. Supabase → Edge Functions → **Secrets**, add: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (your pair – the public one must equal `VAPID_PUBLIC` in `js/pushkey.js`) and optionally `VAPID_SUBJECT` = `mailto:your@email`.
+4. Customers: QR page → "📲 Install" (Android: one tap; iPhone: Share → Add to Home Screen). They tap "🔔 Turn on notifications" (or after sending an order).
+5. Staff: QR Ordering → **📣 Send offer / alert** shows a banner to all logged-in customers and sends a phone notification. Confirm / Reject / kitchen "Mark Served" also notify the customer's phone.
+Notes: the notification sound on a closed page is the phone's own notification sound (browsers don't allow custom sounds). iPhone needs iOS 16.4+ and the installed home-screen app.
+
+## Update 17 – orderable offers with photo, today-only orders on the menu
+1. Run `sql/update-12.sql` (after update-11).
+2. **Re-deploy the Edge Function `qr-push`** (paste the new `supabase/functions/qr-push/index.ts` → Deploy). It now sends the offer photo and opens the offer when the notification is tapped.
+3. QR Ordering → 📣 Send offer / alert: add a photo, and (optional) tick the offer items + offer prices. Customers see the offer card (tap → offer screen → Add → order). Prices are checked on the server.
+4. The QR menu page now lists only **today's** orders; older ones are in 🕘 My orders.
+5. The send box shows how many phones can get notifications; if sending fails it shows the reason.
+
+## Update 18 – personal messages/offers, steadier offer form, new menu order
+1. Run `sql/update-13.sql` (after update-12).
+2. Re-deploy the Edge Function `qr-push` (new `supabase/functions/qr-push/index.ts`) – it can now notify only chosen customers.
+3. **Customers → 💬 Message QR customers**: choose QR-registered customers, write a message / offer (photo, offer items + prices), send by QR menu + phone notification (only they see it) and/or WhatsApp (opens each chat with the message and the menu/offer link).
+4. The "Send offer / alert" form on QR Ordering no longer loses what you typed when the page refreshes, and the offer-item/price list is always visible.
+5. Menu order: POS, QR Ordering, Orders & Billing, Customers, Kitchen Display, Dashboard, Menu Management, Inventory, Google Review, Settings & Security.
+
+## Update 19 – custom offer items, per-customer QR button, best QR customers first
+1. Run `sql/update-14.sql` (after update-13). No Edge Function change this time.
+2. Offer form (QR Ordering and Customers): **✏️ Custom offer item** = your own name + price (e.g. a combo shown in the photo). Optional "stock link" lowers the stock of a chosen menu item when ordered.
+3. Customers table: customers who registered on the QR menu get a **📱 QR** button next to WhatsApp – opens a message/offer for just that customer.
+4. Message QR customers: the list shows the customers with the most QR orders first.
+
+## Update 20 – manage QR customers in Settings & Security; WhatsApp offer link only; clearer ✕ on offers
+1. Run `sql/update-15.sql` (after update-14). No Edge Function change.
+2. **Settings & Security → 📱 QR menu customers**: search, ✏️ Edit name/phone number, 🔑 New PIN (random or typed; customer is logged out everywhere; send it on WhatsApp), 🗑 Remove. Setting a PIN or removing a customer asks for the authenticator code. A PIN is stored scrambled, so it can never be read back – set a new one instead.
+3. WhatsApp message from Message QR customers now carries only the offer / menu link (no photo link).
+4. The ✕ on the customer's offer card is now a round button that is visible on top of the photo.
+
+## Update 21 – Send offer / alert moved to the Customers tab
+- **Send offer / alert** now lives in **Customers** (button 📣 *Send offer / alert*). It is removed from QR Ordering.
+- Choose **Everyone on the QR menu** or **Choose customers**. Customers are in two groups, each with its own *Select all* plus one *Select all customers*:
+  - 📱 **QR menu customers** (registered on the QR menu, most QR orders first)
+  - 💬 **WhatsApp customers** (numbers saved from POS orders, not registered yet; customers who stopped promos are left out)
+- When a WhatsApp customer registers on the QR menu using the offer link, they automatically move to the QR group.
+- **Send by:** 📱 QR menu + phone notification (only chosen customers see it) and/or 💬 WhatsApp (opens WhatsApp for each customer with the message and the offer link).
+- Every customer row has a button (📱 QR / 🎁 Offer) that opens the panel with that customer already chosen.
+- **Run `sql/update-16.sql`** (after 10–15). No Edge Function redeploy needed.
+
+## Update 22 – Edit offers, offers can't be dismissed, monthly history, share menu
+- **Customers → Send offer / alert → Showing now → ✏️ Edit**: change title, message, photo, items, prices, custom items. End time can stay as it is ("Keep the current end time"). Optional: send a phone notification again.
+- On the QR menu the customer's ✕ on offers is gone. An offer disappears only when you press **Stop showing** (or it expires).
+- Customer **My order history** shows only the **current month** (Sri Lanka time). On the 1st of a new month it starts empty. (Old orders stay in your own Orders & Billing records.)
+- New **🔗 share button** on the QR menu: opens the phone's share sheet (WhatsApp etc.); on a computer it shows WhatsApp / Copy link.
+- **Run `sql/update-17.sql`**. No Edge Function redeploy.
+
+## Update 23 – Developer credit
+- All bills show **Designed and Developed by SDream Code** (set in `js/brand.js`).
+- WhatsApp bills (text and picture) also carry https://www.facebook.com/SDreamCode/ ; the printed bill shows the name only.
+- The QR menu footer shows "Designed and Developed by SDream Code" linking to the Facebook page.
+- No SQL, no Edge Function.
+
+## Update 24 – Developer credit in the POS
+- The POS sidebar (under the logged-in email) shows **Designed and Developed by SDream Code** (links to the Facebook page). No SQL / Edge Function.
+
+## Update 18 – Mr Sadu branding + item photos
+1. **Run `sql/update-18.sql`** once in Supabase → SQL Editor (adds the item photo column, the public `items` photo bucket, photos on the customer QR menu, and changes the shop name from the old one to **Mr Sadu**).
+2. **New look:** logo colours – deep maroon + gold (dark and light themes). The full Mr Sadu logo is on the login page, sidebar, kitchen screen, QR page, app icons and every bill (printed bills use a black & white version of the same logo so thermal printers print it cleanly; WhatsApp bill pictures carry the full-colour logo).
+3. **Item photos:** Menu Management → *Add item / Edit* → **Add photo** (camera or gallery). The photo is shrunk automatically. POS shows photo cards (as soon as one item has a photo; items without one show a gold letter), the order list shows a small photo, and the customer QR menu shows it too.
+4. Bill numbers now start with **MS-** (was MB-).
+5. Settings → Shop details: fill your real **address and phone** (the old shop's address was removed).
