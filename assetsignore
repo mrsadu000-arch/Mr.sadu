@@ -1,0 +1,16 @@
+# files that must NOT be published on the website
+wrangler.jsonc
+.assetsignore
+.gitignore
+.env.example
+package.json
+package-lock.json
+netlify.toml
+vite.config.js
+README.md
+src
+sql
+supabase
+public
+node_modules
+.git
