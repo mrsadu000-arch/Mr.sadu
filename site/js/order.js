@@ -115,6 +115,9 @@ async function syncPush(ask) {
     if (Notification.permission !== 'granted') { pushOn = false; return false; }
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
+    if (sub) { // a subscription made with a different (old) key can never receive anything -> renew it
+      try { const cur = new Uint8Array(sub.options.applicationServerKey || []), want = b64(VAPID_PUBLIC); if (cur.length !== want.length || cur.some((v, i) => v !== want[i])) { await sub.unsubscribe(); sub = null; } } catch { /* keep */ }
+    }
     if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(VAPID_PUBLIC) });
     const j = sub.toJSON();
     const { data } = await sb.rpc('qr_push_save', { p_token: me.token, p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth });

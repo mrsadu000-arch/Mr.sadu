@@ -52,11 +52,12 @@ Deno.serve(async (req: Request) => {
     payload = { kind: b.kind, title: t[0], body: t[1], tag: 'mb-' + q.code };
   } else return json({ error: 'Unknown kind' }, 400);
 
-  let sent = 0; const dead: string[] = [];
+  let sent = 0, failed = 0, lastError = ''; const dead: string[] = [];
+  if (!subs.length) return json({ sent: 0, failed: 0, note: 'No phone has notifications turned on for this customer yet' });
   await Promise.all(subs.map(async (s) => {
     try { await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify({ url: 'order.html', ...payload }), { TTL: 3600 }); sent++; }
-    catch (e) { const code = (e as { statusCode?: number }).statusCode; if (code === 404 || code === 410) dead.push(s.id); }
+    catch (e) { failed++; const code = (e as { statusCode?: number }).statusCode; lastError = `push service said ${code || ''} ${String((e as { body?: string }).body || (e as Error).message || '').slice(0, 120)}`; if ([400, 401, 403, 404, 410].includes(code as number)) dead.push(s.id); }
   }));
   if (dead.length) await fetch(`${base}/rest/v1/qr_push?id=in.(${dead.join(',')})`, { method: 'DELETE', headers: { apikey: svc, Authorization: `Bearer ${svc}` } });
-  return json({ sent, removed: dead.length });
+  return json({ sent, failed, removed: dead.length, ...(lastError ? { error: lastError } : {}) });
 });
