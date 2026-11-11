@@ -25,7 +25,7 @@ Try it right now without any setup: open `index.html` through any web server (e.
 3. **Authentication → Users → Add user → Create new user**: your email + a strong password, tick **Auto Confirm User**. Add one for each staff member if needed.
 4. **Authentication → Sign In / Providers** (or Settings): turn **OFF** "Allow new users to sign up" so nobody else can register.
 5. **Authentication → Multi-Factor** : make sure **TOTP** is enabled (it is by default).
-6. **Project Settings → API**: copy **Project URL** and the **anon public** key into `js/config.js`:
+6. **Project Settings → API**: copy **Project URL** and the **anon public** key into `site/js/config.js`:
    ```js
    export const SUPABASE_URL = 'https://xxxx.supabase.co';
    export const SUPABASE_ANON_KEY = 'eyJ...';
@@ -236,3 +236,7 @@ Notes: the notification sound on a closed page is the phone's own notification s
 3. **Item photos:** Menu Management → *Add item / Edit* → **Add photo** (camera or gallery). The photo is shrunk automatically. POS shows photo cards (as soon as one item has a photo; items without one show a gold letter), the order list shows a small photo, and the customer QR menu shows it too.
 4. Bill numbers now start with **MS-** (was MB-).
 5. Settings → Shop details: fill your real **address and phone** (the old shop's address was removed).
+
+## Folder layout (important)
+The website itself lives in the **`site/`** folder (index.html, css, js, assets...). Cloudflare publishes only that folder (see `wrangler.jsonc`), so `sql/`, `src/`, `supabase/` etc. are never put online.
+Supabase keys: `site/js/config.js`.
