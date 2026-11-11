@@ -40,7 +40,7 @@ const store = { get: (k, d) => { try { return localStorage.getItem(k) ?? d; } ca
 const themeNow = () => document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
 function setTheme(t) {
   document.documentElement.dataset.theme = t; store.set('mb_theme', t);
-  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'light' ? '#faf5ec' : '#3a1212';
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'light' ? '#faf5ec' : '#0b0b0c';
   paintCtl();
 }
 function ctlHTML() {

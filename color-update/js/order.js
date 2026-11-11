@@ -66,7 +66,7 @@ function paintCtl() {
 }
 function setTheme(t) {
   document.documentElement.dataset.theme = t; LS.set('mb_theme', t);
-  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'light' ? '#faf5ec' : '#3a1212';
+  const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'light' ? '#faf5ec' : '#0b0b0c';
   paintCtl();
 }
 function statusOf(o) {
