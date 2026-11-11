@@ -130,6 +130,29 @@ async function dropPush() {
   try { if (!pushSupported() || !me) return; const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription(); if (sub) await sb.rpc('qr_push_remove', { p_token: me.token, p_endpoint: sub.endpoint }); } catch { /* ignore */ }
   pushOn = false;
 }
+// "Check notifications": tests every step on THIS phone and says what to fix
+async function notifDiag() {
+  const rows = [], add = (ok, text, fix) => rows.push({ ok, text, fix });
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent), standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  const m = modal(`<h3>🔧 Check notifications</h3><div id=\"dg\" class=\"muted small\">Checking…</div><div class=\"row\" style=\"margin-top:12px;gap:8px\"><button class=\"btn ghost\" id=\"dgt\">Show a test notification</button><button class=\"btn\" id=\"dgk\">Close</button></div>`);
+  $('#dgk', m.el).onclick = () => m.close();
+  add(location.protocol === 'https:' || location.hostname === 'localhost', 'Secure page (https)', 'Open the website with https://');
+  add('serviceWorker' in navigator, 'Phone/browser supports background service', ios ? 'On iPhone: Share → Add to Home Screen, then open the app from the Home Screen icon' : 'Use Chrome on Android');
+  add('PushManager' in window, 'Phone/browser supports push notifications', ios && !standalone ? 'iPhone: Share → Add to Home Screen, then open the app from the Home Screen icon (iOS 16.4 or newer)' : 'Update your browser / use Chrome');
+  add(!!VAPID_PUBLIC, 'Notification key is set in the website', 'Shop owner: put the public key in js/pushkey.js');
+  const perm = 'Notification' in window ? Notification.permission : 'unsupported';
+  add(perm === 'granted', `Permission: ${perm}`, perm === 'denied' ? 'Blocked. Phone Settings → this app/site → Notifications → Allow' : 'Tap “🔔 Turn on notifications” and press Allow');
+  let reg = null, sub = null, saved = null;
+  try { reg = await Promise.race([navigator.serviceWorker.ready, new Promise((_, rj) => setTimeout(() => rj(new Error('timeout')), 4000))]); add(true, 'Background service is running'); } catch { add(false, 'Background service is not running', 'Close the page completely and open it again'); }
+  if (reg) { try { sub = await reg.pushManager.getSubscription(); } catch { /* ignore */ }
+    add(!!sub, sub ? 'This phone is subscribed' : 'This phone is not subscribed yet', 'Tap “🔔 Turn on notifications” and press Allow');
+    if (sub) { let host = ''; try { host = new URL(sub.endpoint).hostname; } catch { /* ignore */ }
+      try { const cur = new Uint8Array(sub.options.applicationServerKey || []), want = b64(VAPID_PUBLIC); add(cur.length === want.length && cur.every((v, i) => v === want[i]), `Subscription key matches (${host})`, 'Old subscription – close the page, open again and tap “Turn on notifications”'); } catch { /* ignore */ }
+      if (me) { try { const j = sub.toJSON(); const { data, error } = await sb.rpc('qr_push_save', { p_token: me.token, p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth }); saved = !error && !!data; add(saved, 'Saved in the shop system', error ? esc(error.message) : 'Log out and log in again'); } catch { add(false, 'Saved in the shop system', 'Log out and log in again'); } }
+      else add(false, 'Not logged in', 'Log in / Register first'); } }
+  $('#dg', m.el).innerHTML = rows.map(r => `<div style=\"padding:5px 0;border-bottom:1px solid var(--line)\">${r.ok ? '✅' : '❌'} <span style=\"color:var(--text)\">${r.text}</span>${r.ok ? '' : `<div class=\"small\" style=\"color:var(--gold)\">→ ${r.fix}</div>`}</div>`).join('') + (rows.every(r => r.ok) ? '<p style=\"color:var(--ok)\"><b>All good on this phone.</b> If a notification still does not come, tell the shop: the shop-side setup (function / keys) needs checking.</p>' : '');
+  $('#dgt', m.el).onclick = async () => { try { if (Notification.permission !== 'granted') await Notification.requestPermission(); const r = await navigator.serviceWorker.ready; await r.showNotification('Test notification 🔔', { body: 'If you can see this, your phone can show notifications.', icon: 'assets/icon-192.png' }); } catch (e) { toast('Could not show: ' + ((e && e.message) || 'blocked'), 'err'); } };
+}
 const pushBlocked = () => 'Notification' in window && Notification.permission === 'denied';
 
 // ---- share the menu with friends ----
@@ -165,7 +188,7 @@ function draw() {
   root.innerHTML = `<div class="qo">
     <div class="qo-head"><img src="assets/logo.png" alt=""><div class="qo-title"><b>${esc(shop.name || 'Order here')}</b><span>${esc(shop.tagline || '')}</span></div>
       <span class="ctls">${canInstall() ? '<button class="ctl" data-ctl="install" data-noi18n>📲 Install</button>' : ''}<button class="ctl" data-ctl="share" data-noi18n aria-label="Share menu" title="Share this menu">🔗</button><button class="ctl" data-ctl="theme" data-noi18n aria-label="Dark / light mode"></button><button class="ctl" data-ctl="lang" data-noi18n></button></span></div>
-    <div class="qo-me">${me ? `Hi <b data-noi18n>${esc(me.name)}</b> · <a href="#" id="qhist">🕘 My orders</a> · ${pushSupported() && !pushOn ? (pushBlocked() ? '<span class="muted small">🔕 Notifications blocked in browser settings</span> · ' : '<a href="#" id="qnot">🔔 Turn on notifications</a> · ') : ''}<a href="#" id="qout">Log out</a>` : `<a href="#" id="qin">Log in / Register</a> to send your order`}</div>
+    <div class="qo-me">${me ? `Hi <b data-noi18n>${esc(me.name)}</b> · <a href="#" id="qhist">🕘 My orders</a> · <a href="#" id="qdiag">🔧 Check notifications</a> · ${pushSupported() && !pushOn ? (pushBlocked() ? '<span class="muted small">🔕 Notifications blocked in browser settings</span> · ' : '<a href="#" id="qnot">🔔 Turn on notifications</a> · ') : ''}<a href="#" id="qout">Log out</a>` : `<a href="#" id="qin">Log in / Register</a> to send your order`}</div>
     ${canInstall() ? '<div class="qo-install"><span>📲 Get our app on your phone – quick ordering &amp; order alerts</span><button class="btn sm" data-ctl="install">Install</button></div>' : ''}
     ${notices.map(n => `<div class="qo-notice">${n.image_url ? `<img class="qo-nimg" src="${esc(n.image_url)}" alt="" data-offer="${n.id}">` : ''}${n.title ? `<b data-noi18n>${esc(n.title)}</b>` : ''}<div data-noi18n>${esc(n.body)}</div>${(n.offer_items || []).length ? `<button class="btn sm" data-offer="${n.id}" style="margin-top:8px">🎁 View offer &amp; order</button>` : ''}</div>`).join('')}
     ${loadErr ? `<div class="err">${esc(loadErr)}<br><small>If this keeps happening, ask the shop.</small></div>` : ''}
@@ -345,13 +368,14 @@ function authSheet(first = 'reg') {
 
 // ---- events ----
 root.addEventListener('click', async e => {
-  const t = e.target.closest('[data-add],[data-dec],[data-cat],[data-cancel],[data-dis],[data-offer],#qcart,#qin,#qout,#qhist,#qnot'); if (!t) return;
+  const t = e.target.closest('[data-add],[data-dec],[data-cat],[data-cancel],[data-dis],[data-offer],#qcart,#qin,#qout,#qhist,#qnot,#qdiag'); if (!t) return;
   if (t.dataset.add) return addItem(t.dataset.add);
   if (t.dataset.dec) return decItem(t.dataset.dec);
   if (t.dataset.cat) { cat = t.dataset.cat; return draw(); }
   if (t.id === 'qcart') return cartSheet();
   if (t.id === 'qin') { e.preventDefault(); return authSheet('login'); }
   if (t.id === 'qhist') { e.preventDefault(); return historySheet(); }
+  if (t.id === 'qdiag') { e.preventDefault(); return notifDiag(); }
   if (t.id === 'qnot') { e.preventDefault(); const ok = await syncPush(true); toast(ok ? 'Notifications are ON 🔔' : 'Notifications were not allowed', ok ? 'ok' : 'err'); return draw(); }
   if (t.dataset.offer) return offerSheet(t.dataset.offer);
   if (t.dataset.dis) { LS.set('mb_qr_dis', JSON.stringify([...dismissed(), t.dataset.dis].slice(-50))); return draw(); }

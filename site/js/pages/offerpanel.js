@@ -53,7 +53,7 @@ export function mountOfferPanel(host) {
   function paintMisc() {
     const sig = JSON.stringify(items.map(i => [i.id, i.name, i.price]));
     if (sig !== itemSig) { itemSig = sig; $('#oitems', root).innerHTML = itemsHTML(F, items, 'o'); }
-    $('#oppc', root).innerHTML = pushCount == null ? '' : `<span class="${pushCount ? 'muted' : ''}" ${pushCount ? '' : 'style="color:var(--bad)"'}>📱 ${pushCount} phone${pushCount === 1 ? '' : 's'} can get notifications${pushCount ? '' : ' – customers must tap “Turn on notifications” first'}</span>`;
+    $('#oppc', root).innerHTML = pushCount == null ? '' : `<span class="${pushCount ? 'muted' : ''}" ${pushCount ? '' : 'style="color:var(--bad)"'}>📱 ${pushCount} phone${pushCount === 1 ? '' : 's'} can get notifications${pushCount ? '' : ' – customers must tap “Turn on notifications” first'}</span> <a href=\"#\" id=\"oppchk\" onclick=\"return false\">🔧 Check setup</a>`;
     $('#opnl', root).innerHTML = notices.length ? `<div style="margin-top:12px"><div class="muted small">Showing now:</div>${notices.map(n => `<div class="row wrap" style="gap:8px;padding:6px 0;border-top:1px solid var(--line)">${n.image_url ? `<img src="${esc(n.image_url)}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:8px">` : ''}<div style="flex:1;min-width:180px"><b data-noi18n>${esc(n.title || '')}</b>${(n.offer_items || []).length ? ` <span class="pill ok">🎁 ${n.offer_items.length} item${n.offer_items.length > 1 ? 's' : ''}</span>` : ''}${n.phones ? ` <span class="pill info">👤 ${n.phones.length} customer${n.phones.length > 1 ? 's' : ''}</span>` : ' <span class="pill info">🌍 everyone</span>'} <span data-noi18n>${esc(n.body)}</span><div class="muted small">${dtstr(n.created_at)}${n.expires_at ? ' · until ' + dtstr(n.expires_at) : ''}</div></div><button class="btn ghost sm" data-editn="${n.id}">✏️ Edit</button><button class="btn ghost sm" data-stopn="${n.id}">Stop showing</button></div>`).join('')}</div>` : '';
   }
   const paintAll = () => { paintWho(); paintVia(); paintMisc(); };
@@ -78,6 +78,14 @@ export function mountOfferPanel(host) {
 
   // ---------- events ----------
   $('#opx', root).onclick = () => { panel.hidden = true; };
+  // 🔧 shop-side check of the notification setup (function + keys + phones)
+  root.addEventListener('click', async e => {
+    if (!e.target.closest('#oppchk')) return;
+    const r = await qrPush({ ping: true }), ok = r && r.configured, phones = pushCount == null ? '?' : pushCount;
+    const line = (good, t, fix) => `<div style=\"padding:6px 0;border-bottom:1px solid var(--line)\">${good ? '✅' : '❌'} ${t}${good ? '' : `<div class=\"small\" style=\"color:var(--gold)\">→ ${fix}</div>`}</div>`;
+    const m = modal(`<h3>🔧 Notification setup check</h3>${line(!(r && r.error && /not deployed|not signed/i.test(r.error)), 'Function “qr-push” is deployed', 'Supabase → Edge Functions → Deploy a new function (Via Editor), name qr-push, paste supabase/functions/qr-push/index.ts')}${line(!!ok, 'VAPID keys are set (Secrets)', (r && r.error) || 'Supabase → Edge Functions → Secrets: add VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT')}${line(phones > 0, `${phones} phone(s) have notifications turned on`, 'Customers must open the QR page, log in and tap “🔔 Turn on notifications” (use 🔧 Check notifications there)')}<div class=\"row\" style=\"margin-top:12px\"><button class=\"btn\" id=\"chk\">Close</button></div>`);
+    $('#chk', m.el).onclick = () => m.close();
+  });
   $('#opmode', root).onclick = e => { const b = e.target.closest('[data-m]'); if (!b) return; S.mode = b.dataset.m; paintAll(); };
   $('#opwho', root).oninput = e => { if (e.target.id === 'opq') { fq = e.target.value.toLowerCase().trim(); const pos = e.target.selectionStart; paintWho(); const i = $('#opq', root); i.focus(); i.setSelectionRange(pos, pos); } };
   $('#opwho', root).onchange = e => {
