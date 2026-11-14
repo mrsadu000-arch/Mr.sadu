@@ -8,6 +8,9 @@ export const DEFAULT_SETTINGS = {
   phone: '',
   whatsapp: '',
   review_link: '',
+  social_facebook: '',
+  social_instagram: 'https://www.instagram.com/mr.batzy?utm_source=qr',
+  social_tiktok: '',
   service_charge_enabled: false,
   service_charge_pct: 10,
   discount_pct: 0,
@@ -37,8 +40,13 @@ export async function loadSettings() {
 
 export async function saveSettings(patch) {
   const next = { ...state.settings, ...patch, id: 1 };
-  const { error } = await sb.from('settings').upsert(next);
+  let { error } = await sb.from('settings').upsert(next), socialMissing = false;
+  if (error && /social_/i.test(error.message || '')) {   // sql/update-19.sql not run yet: keep every other setting working
+    const lean = { ...next }; ['social_facebook', 'social_instagram', 'social_tiktok'].forEach(k => delete lean[k]);
+    ({ error } = await sb.from('settings').upsert(lean)); socialMissing = !error;
+  }
   if (error) throw error;
   state.settings = next;
   window.dispatchEvent(new Event('settings-changed'));
+  return { socialMissing };
 }

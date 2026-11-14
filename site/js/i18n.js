@@ -6,7 +6,7 @@
 const SI = {
   // ---- navigation / shell ----
   'POS': 'POS (විකුණුම්)', 'Orders & Billing': 'ඇණවුම් සහ බිල්පත්', 'Dashboard': 'උපකරණ පුවරුව', 'Kitchen Display': 'මුළුතැන්ගෙය',
-  'Menu Management': 'මෙනු කළමනාකරණය', 'Inventory': 'තොග', 'Google Review': 'Google සමාලෝචනය', 'Settings & Security': 'සැකසුම් සහ ආරක්ෂාව',
+  'Menu Management': 'මෙනු කළමනාකරණය', 'Inventory': 'තොග', 'Google Review': 'Google සමාලෝචනය', 'Social Media': 'සමාජ මාධ්‍ය', 'Settings & Security': 'සැකසුම් සහ ආරක්ෂාව',
   'POS System': 'POS පද්ධතිය', 'Sign out': 'ඉවත් වන්න', 'Cashier:': 'අයකැමි:', 'not set': 'සකසා නැත', 'Loading…': 'පූරණය වෙමින්…',
   'Device:': 'උපාංගය:', 'Counter': 'කවුන්ටරය', 'Kitchen': 'මුළුතැන්ගෙය', 'Both': 'දෙකම', 'Dark': 'අඳුරු', 'Light': 'ආලෝක',
   'Tap here to turn on sound alerts': 'ශබ්ද ඇඟවීම් සක්‍රිය කිරීමට මෙතන ඔබන්න',

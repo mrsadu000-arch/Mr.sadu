@@ -26,7 +26,7 @@ const PAGES = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', mod: dashboard },
   { id: 'menu', label: 'Menu Management', icon: 'menu', mod: menu },
   { id: 'inventory', label: 'Inventory', icon: 'inventory', mod: inventory },
-  { id: 'review', label: 'Google Review', icon: 'star', mod: review },
+  { id: 'review', label: 'Social Media', icon: 'star', mod: review },
   { id: 'settings', label: 'Settings & Security', icon: 'settings', mod: settings },
 ];
 

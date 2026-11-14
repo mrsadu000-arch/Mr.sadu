@@ -12,6 +12,8 @@ const netTotal = o => Math.round((Number(o.total || 0) - refunded(o)) * 100) / 1
 export const payLabel = p => PAY[p] || p;
 const LOGO_PRINT = 'assets/logo-print.png';   // black & white, prints well on thermal paper
 const LOGO_COLOR = 'assets/logo-small.png';
+// Links printed at the end of WhatsApp bills (empty ones are skipped)
+export const socialLines = s => [['📘 Facebook', s.social_facebook], ['📸 Instagram', s.social_instagram], ['🎵 TikTok', s.social_tiktok], ['⭐ Rate us on Google', s.review_link]].filter(([, u]) => u && String(u).trim()).map(([l, u]) => [l, String(u).trim()]);
 const siteText = () => String(SOFTWARE_SITE || '').replace(/^https?:\/\//i, '').replace(/\/$/, '');
 
 // ---------- customer bill (print + preview). NO review link here, on purpose ----------
@@ -111,7 +113,7 @@ export function billText(o, s = state.settings) {
   L.push(`Paid by: ${payLabel(o.payment_method)}`);
   if (o.payment_method === 'cash' && o.cash_received > 0) L.push(`Cash: ${fmt(o.cash_received)} · Change: ${fmt(o.change_given)}`);
   L.push('');
-  if (s.review_link) { L.push('⭐ Enjoyed it? Rate us on Google:'); L.push(s.review_link); L.push(''); }
+  const sl = socialLines(s); if (sl.length) { L.push('Follow us & rate us 👇'); sl.forEach(([lab, u]) => L.push(`${lab}: ${u}`)); L.push(''); }
   L.push(s.bill_footer || 'Thank you!');
   if (SOFTWARE_NAME || SOFTWARE_SITE) L.push('');
   if (SOFTWARE_NAME) L.push(`_Designed and Developed by ${SOFTWARE_NAME}_`);
@@ -167,7 +169,7 @@ export async function billImage(o, s = state.settings, { review = true } = {}) {
   pair('Paid by', payLabel(o.payment_method));
   if (o.payment_method === 'cash' && o.cash_received > 0) { pair('Cash received', fmt(o.cash_received)); pair('Change', fmt(o.change_given)); }
   add('hr');
-  if (review && s.review_link) { add('center', { t: '⭐ Enjoyed it? Rate us on Google:', f: `600 18px ${FAM}`, h: 28 }); wrap(s.review_link, `400 15px ${FAM}`, W - 2 * P).forEach(t => add('center', { t, f: `400 15px ${FAM}`, h: 22, link: true })); }
+  if (review) { const sl = socialLines(s); if (sl.length) { add('center', { t: 'Follow us & rate us', f: `600 18px ${FAM}`, h: 30 }); sl.forEach(([lab, url]) => { add('center', { t: lab, f: `600 15px ${FAM}`, h: 23 }); wrap(url, `400 14px ${FAM}`, W - 2 * P).forEach(t => add('center', { t, f: `400 14px ${FAM}`, h: 20, link: true })); }); } }
   add('center', { t: s.bill_footer || 'Thank you!', f: `600 19px ${FAM}`, h: 34 });
   if (SOFTWARE_NAME) add('center', { t: 'Designed and Developed by ' + SOFTWARE_NAME, f: `400 14px ${FAM}`, h: 20, muted: true });
   if (SOFTWARE_SITE) wrap(SOFTWARE_SITE, `400 13px ${FAM}`, W - 2 * P).forEach(t => add('center', { t, f: `400 13px ${FAM}`, h: 19, muted: true }));
@@ -232,7 +234,7 @@ export function showBillModal(o, { title, onClose, keep = false, manage } = {}) 
       <button class="btn ghost" id="bKot">${ico('print')} Kitchen Slip</button>
     </div>
     ${manage ? `<div class="row wrap" style="margin-top:8px"><button class="btn ghost" id="bEdit">${ico('edit')} Change type / payment</button><button class="btn ghost" id="bRefund">↩ Refund</button></div>` : ''}
-    <p class="muted small">WhatsApp bills include your Google review link${SOFTWARE_NAME || SOFTWARE_SITE ? ' and the developer link' : ''}. The printed bill does not show the review link. The <b>picture</b> version carries the logo (on a phone choose WhatsApp in the share list; on a computer the picture is saved and the chat opens).</p>`,
+    <p class="muted small">WhatsApp bills include your social media and Google review links (set them in the <b>Social Media</b> tab). The printed bill does not show them. The <b>picture</b> version carries the logo (on a phone choose WhatsApp in the share list; on a computer the picture is saved and the chat opens).</p>`,
     { onClose: () => { if (keep) { try { localStorage.removeItem(OPEN_BILL); } catch { /* ignore */ } } if (onClose) onClose(); }, wide: true, outside: !keep });
   const phone = () => $('#waNum', m.el).value;
   $('#bWa', m.el).onclick = () => { if (!phone().trim()) toast('No number entered - choose the contact inside WhatsApp', 'info'); sendWhatsApp(o, phone()); };
